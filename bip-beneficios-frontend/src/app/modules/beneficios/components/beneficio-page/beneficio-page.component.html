@@ -1,0 +1,586 @@
+<main class="page" [class.page--modal-open]="hasOpenModal">
+
+  <header class="hero card">
+    <div class="hero__brand">
+      <span class="hero__badge">BIP</span>
+      <div class="hero__copy">
+        <h1>Gestão de benefícios</h1>
+        <p class="hero__tagline">Consulte, cadastre e transfira saldos em poucos cliques.</p>
+      </div>
+    </div>
+
+    <div class="hero__stats">
+
+      <article class="stat">
+
+        <span class="stat__label">Cadastrados</span>
+
+        <strong class="stat__value">{{ beneficios.length }}</strong>
+
+      </article>
+
+      <article class="stat">
+
+        <span class="stat__label">Ativos</span>
+
+        <strong class="stat__value">{{ totalAtivos }}</strong>
+
+      </article>
+
+      <article class="stat">
+
+        <span class="stat__label">Saldo total</span>
+
+        <strong class="stat__value">{{ formatCurrency(saldoTotal) }}</strong>
+
+      </article>
+
+    </div>
+
+  </header>
+
+
+
+  <section class="card table-panel">
+
+    <div class="panel-header">
+
+      <div>
+
+        <h2>Seus benefícios</h2>
+
+        <p class="panel-subtitle">Busque, filtre e gerencie na tabela abaixo.</p>
+
+      </div>
+
+      <div class="panel-actions">
+
+        <button type="button" class="btn btn--primary" (click)="openCreate()">Novo cadastro</button>
+
+        <button type="button" class="btn btn--ghost" (click)="openTransfer()" [disabled]="beneficios.length < 2">
+
+          Transferência
+
+        </button>
+
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [class.btn--loading]="refreshingList"
+          (click)="loadBeneficios()"
+          [disabled]="initialLoading"
+        >
+          <span class="spinner spinner--inline" *ngIf="refreshingList" aria-hidden="true"></span>
+          Atualizar
+        </button>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="toolbar">
+
+      <label class="search-field">
+
+        <span>Buscar</span>
+
+        <div class="search-input">
+
+          <input
+
+            type="search"
+
+            [(ngModel)]="searchTerm"
+
+            placeholder="Nome ou descrição..."
+
+            [ngModelOptions]="{ standalone: true }"
+
+          />
+
+          <button type="button" class="btn btn--ghost btn--sm" (click)="clearSearch()" *ngIf="searchTerm">
+
+            Limpar
+
+          </button>
+
+        </div>
+
+      </label>
+
+
+
+      <label class="filter-field">
+
+        <span>Status</span>
+
+        <select [(ngModel)]="statusFilter" [ngModelOptions]="{ standalone: true }">
+
+          <option value="all">Todos</option>
+
+          <option value="active">Ativos</option>
+
+          <option value="inactive">Inativos</option>
+
+        </select>
+
+      </label>
+
+    </div>
+
+
+
+    <div class="table-wrap" [class.table-wrap--loading]="initialLoading">
+
+      <div class="loading-overlay" *ngIf="initialLoading">
+
+        <span class="spinner" aria-hidden="true"></span>
+
+        <p>Carregando benefícios...</p>
+
+      </div>
+
+
+
+      <div class="empty-state empty-state--error" *ngIf="!initialLoading && listLoadFailed">
+        <h3>Não foi possível carregar os benefícios</h3>
+        <p>{{ error }}</p>
+        <button type="button" class="btn btn--primary" (click)="loadBeneficios()">Tentar novamente</button>
+      </div>
+
+      <div class="empty-state" *ngIf="!initialLoading && !listLoadFailed && beneficios.length === 0">
+        <h3>Nenhum benefício cadastrado</h3>
+        <p>Comece criando o primeiro registro.</p>
+        <button type="button" class="btn btn--primary" (click)="openCreate()">Cadastrar benefício</button>
+      </div>
+
+
+
+      <div
+
+        class="empty-state"
+
+        *ngIf="!initialLoading && beneficios.length > 0 && filteredBeneficios.length === 0"
+
+      >
+
+        <h3>Nenhum resultado encontrado</h3>
+
+        <p>Ajuste os filtros ou limpe a busca.</p>
+
+        <button type="button" class="btn btn--ghost" (click)="clearSearch(); statusFilter = 'all'">
+
+          Resetar filtros
+
+        </button>
+
+      </div>
+
+
+
+      <table *ngIf="!initialLoading && tableRows.length > 0">
+
+        <thead>
+
+          <tr>
+
+            <th>ID</th>
+
+            <th>Nome</th>
+
+            <th>Descrição</th>
+
+            <th>Saldo</th>
+
+            <th>Status</th>
+
+            <th class="col-actions">Ações</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          <tr
+
+            *ngFor="let beneficio of tableRows; trackBy: trackById"
+
+            [class.row-selected]="highlightedId === beneficio.id"
+
+          >
+
+            <td>#{{ beneficio.id }}</td>
+
+            <td class="cell-strong">{{ beneficio.nome }}</td>
+
+            <td>{{ beneficio.descricao || '-' }}</td>
+
+            <td class="cell-money">{{ formatCurrency(beneficio.valor) }}</td>
+
+            <td>
+
+              <span class="badge" [class.badge--inactive]="!beneficio.ativo">
+
+                {{ beneficio.ativo ? 'Ativo' : 'Inativo' }}
+
+              </span>
+
+            </td>
+
+            <td>
+
+              <div class="row-actions">
+
+                <button type="button" class="btn btn--ghost btn--sm" (click)="edit(beneficio)">Editar</button>
+
+                <button type="button" class="btn btn--ghost btn--sm" (click)="openTransfer(beneficio)">
+
+                  Transferir
+
+                </button>
+
+                <button
+
+                  type="button"
+
+                  class="btn btn--danger btn--sm"
+
+                  (click)="requestDelete(beneficio)"
+
+                  [disabled]="isRowBusy(beneficio.id)"
+
+                >
+
+                  {{ isRowBusy(beneficio.id) ? 'Excluindo...' : 'Excluir' }}
+
+                </button>
+
+              </div>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+
+    <footer class="table-footer" *ngIf="!initialLoading">
+
+      Exibindo {{ tableRows.length }} de {{ beneficios.length }}
+      {{ beneficios.length === 1 ? 'registro' : 'registros' }}
+
+    </footer>
+
+  </section>
+
+</main>
+
+
+
+<!-- Modal cadastro / edicao -->
+
+<div
+
+  class="modal-backdrop"
+
+  *ngIf="cadastroModalOpen"
+
+  (click)="closeCadastroModal()"
+
+  role="presentation"
+
+>
+
+  <div
+
+    class="modal"
+
+    role="dialog"
+
+    aria-modal="true"
+
+    [attr.aria-labelledby]="isEditing ? 'modal-cadastro-edit' : 'modal-cadastro-new'"
+
+    (click)="$event.stopPropagation()"
+
+  >
+
+    <header class="modal__header">
+
+      <div>
+
+        <h2 [id]="isEditing ? 'modal-cadastro-edit' : 'modal-cadastro-new'">
+
+          {{ isEditing ? 'Editar benefício' : 'Novo cadastro' }}
+
+        </h2>
+
+        <p class="modal__subtitle">
+
+          {{
+            isEditing
+              ? 'Altere os dados do benefício selecionado.'
+              : 'Preencha os campos abaixo para criar um novo benefício.'
+          }}
+
+        </p>
+
+      </div>
+
+      <button type="button" class="modal__close" (click)="closeCadastroModal()" [disabled]="saving" aria-label="Fechar">
+
+        &times;
+
+      </button>
+
+    </header>
+
+
+
+    <form [formGroup]="beneficioForm" (ngSubmit)="saveBeneficio()" class="form" novalidate>
+      <label class="field" [class.field--invalid]="isBeneficioFieldInvalid('nome')">
+        <span class="field__label">Nome <span class="required">*</span></span>
+        <input type="text" formControlName="nome" placeholder="Ex.: Vale-refeição" autocomplete="off" />
+        <span class="field__error" *ngIf="isBeneficioFieldInvalid('nome')">Informe o nome do benefício.</span>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Descrição</span>
+        <textarea rows="3" formControlName="descricao" placeholder="Descrição opcional"></textarea>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Valor inicial <span class="required">*</span></span>
+        <input
+          type="text"
+          class="input-currency"
+          inputmode="decimal"
+          [value]="beneficioValorDisplay"
+          (input)="onBeneficioValorInput($event)"
+          (blur)="markBeneficioValorTouched()"
+          placeholder="R$ 0,00"
+          autocomplete="off"
+        />
+      </label>
+
+      <div class="checkbox-field">
+        <input type="checkbox" id="beneficio-ativo" formControlName="ativo" />
+        <label for="beneficio-ativo">Benefício ativo</label>
+      </div>
+
+      <footer class="modal__footer">
+        <button type="submit" class="btn btn--primary btn--block" [disabled]="!canSubmitCadastro">
+          <span class="spinner spinner--inline" *ngIf="saving" aria-hidden="true"></span>
+          {{ saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar' }}
+        </button>
+      </footer>
+    </form>
+
+  </div>
+
+</div>
+
+
+
+<!-- Modal transferencia -->
+
+<div
+
+  class="modal-backdrop"
+
+  *ngIf="transferModalOpen"
+
+  (click)="closeTransferModal()"
+
+  role="presentation"
+
+>
+
+  <div
+
+    class="modal"
+
+    role="dialog"
+
+    aria-modal="true"
+
+    aria-labelledby="modal-transfer-title"
+
+    (click)="$event.stopPropagation()"
+
+  >
+
+    <header class="modal__header">
+
+      <div>
+
+        <h2 id="modal-transfer-title">Transferência de saldo</h2>
+
+        <p class="modal__subtitle">Transfira valor entre dois benefícios de forma rápida e segura.</p>
+
+      </div>
+
+      <button
+
+        type="button"
+
+        class="modal__close"
+
+        (click)="closeTransferModal()"
+
+        [disabled]="transferring"
+
+        aria-label="Fechar"
+
+      >
+
+        &times;
+
+      </button>
+
+    </header>
+
+
+
+    <form [formGroup]="transferenciaForm" (ngSubmit)="transferir()" class="form" novalidate>
+      <label class="field" [class.field--invalid]="isTransferFieldInvalid('origemId')">
+        <span class="field__label">Origem <span class="required">*</span></span>
+        <select formControlName="origemId" (change)="transferenciaForm.controls.origemId.markAsTouched()">
+          <option [ngValue]="0">Selecione a origem</option>
+          <option *ngFor="let beneficio of beneficios; trackBy: trackById" [ngValue]="beneficio.id">
+            {{ beneficio.nome }} — {{ formatCurrency(beneficio.valor) }}
+          </option>
+        </select>
+        <span class="field__error" *ngIf="isTransferFieldInvalid('origemId')">Selecione o benefício de origem.</span>
+      </label>
+
+      <label class="field" [class.field--invalid]="isTransferFieldInvalid('destinoId')">
+        <span class="field__label">Destino <span class="required">*</span></span>
+        <select formControlName="destinoId" (change)="transferenciaForm.controls.destinoId.markAsTouched()">
+          <option [ngValue]="0">Selecione o destino</option>
+          <option *ngFor="let beneficio of beneficios; trackBy: trackById" [ngValue]="beneficio.id">
+            {{ beneficio.nome }} — {{ formatCurrency(beneficio.valor) }}
+          </option>
+        </select>
+        <span class="field__error" *ngIf="isTransferFieldInvalid('destinoId')">Selecione o benefício de destino.</span>
+      </label>
+
+      <p class="field__error field__error--inline" *ngIf="transferSameAccountSelected">
+        Origem e destino devem ser benefícios diferentes.
+      </p>
+
+      <label class="field" [class.field--invalid]="isTransferFieldInvalid('valor')">
+        <span class="field__label">Valor da transferência <span class="required">*</span></span>
+        <input
+          type="text"
+          class="input-currency"
+          inputmode="decimal"
+          [value]="transferenciaValorDisplay"
+          (input)="onTransferenciaValorInput($event)"
+          (blur)="markTransferenciaValorTouched()"
+          placeholder="R$ 0,00"
+          autocomplete="off"
+        />
+        <span class="field__error" *ngIf="isTransferFieldInvalid('valor')">
+          Informe um valor maior que zero.
+        </span>
+      </label>
+
+      <footer class="modal__footer">
+        <button type="submit" class="btn btn--primary btn--block" [disabled]="!canSubmitTransferencia">
+          <span class="spinner spinner--inline" *ngIf="transferring" aria-hidden="true"></span>
+          {{ transferring ? 'Transferindo...' : 'Confirmar transferência' }}
+        </button>
+      </footer>
+    </form>
+
+  </div>
+
+</div>
+
+
+
+<!-- Modal confirmacao exclusao -->
+
+<div
+
+  class="modal-backdrop"
+
+  *ngIf="confirmDeleteBeneficio"
+
+  (click)="cancelDeleteConfirm()"
+
+  role="presentation"
+
+>
+
+  <div
+
+    class="modal modal--confirm"
+
+    role="alertdialog"
+
+    aria-modal="true"
+
+    aria-labelledby="modal-delete-title"
+
+    (click)="$event.stopPropagation()"
+
+  >
+
+    <header class="modal__header">
+      <div>
+        <h2 id="modal-delete-title">Excluir benefício?</h2>
+        <p class="modal__subtitle">
+          Esta ação não pode ser desfeita. Deseja remover
+          <strong>{{ confirmDeleteBeneficio.nome }}</strong>?
+        </p>
+      </div>
+      <button
+        type="button"
+        class="modal__close"
+        (click)="cancelDeleteConfirm()"
+        [disabled]="deletingId !== null"
+        aria-label="Fechar"
+      >
+        &times;
+      </button>
+    </header>
+
+    <footer class="modal__footer modal__footer--split">
+      <button
+        type="button"
+        class="btn btn--danger-solid btn--block"
+        (click)="confirmDelete()"
+        [disabled]="deletingId !== null"
+      >
+        <span class="spinner spinner--inline" *ngIf="deletingId !== null" aria-hidden="true"></span>
+        {{ deletingId !== null ? 'Excluindo...' : 'Sim, excluir' }}
+      </button>
+    </footer>
+
+  </div>
+
+</div>
+
+<div class="toast-container" aria-live="polite" aria-atomic="true">
+  <div
+    *ngIf="toast"
+    class="toast"
+    [class.toast--success]="toast.type === 'success'"
+    [class.toast--error]="toast.type === 'error'"
+    [class.toast--leaving]="toastLeaving"
+    role="status"
+  >
+    {{ toast.text }}
+  </div>
+</div>
+
