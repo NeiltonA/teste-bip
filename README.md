@@ -1,6 +1,6 @@
 # BIP Beneficios
 
-Solucao fullstack em camadas para o desafio BIP: banco de dados, modulo EJB, **bip-beneficios-backend** e **bip-beneficios-frontend**, testes e CI.
+Solucao fullstack em camadas, banco de dados, modulo EJB, **bip-beneficios-backend** e **bip-beneficios-frontend**, testes e CI.
 
 ## Arquitetura
 
@@ -45,7 +45,7 @@ Configuracao: `bip-beneficios-backend/src/main/resources/application.yml`
 ### Backend
 
 ```powershell
-cd d:\bip-beneficios
+cd c:\bip-beneficios
 mvn test
 mvn -pl bip-beneficios-backend spring-boot:run
 ```
@@ -58,7 +58,7 @@ A API sobe em `http://localhost:8080`.
 ### Frontend
 
 ```powershell
-cd d:\bip-beneficios\bip-beneficios-frontend
+cd c:\bip-beneficios\bip-beneficios-frontend
 npm install
 npm start
 ```
@@ -106,20 +106,3 @@ O `BeneficioEjbService` original permitia transferências sem validar saldo nem 
 - Usa `PESSIMISTIC_WRITE` e bloqueia registros sempre na **ordem crescente de ID** (evita deadlock)
 - Exceções anotadas com `@ApplicationException(rollback = true)` para reverter a transação
 
-## Critérios do desafio (mapa)
-
-| Critério | Peso | Onde está |
-|----------|------|-----------|
-| Arquitetura em camadas | 20% | `db` → `ejb-module` → `bip-beneficios-backend` (controller/service/repository/dto/model) → Angular por feature |
-| Correção EJB | 20% | `BeneficioEjbService`, testes em `BeneficioEjbServiceTest` |
-| CRUD + transferência | 15% | REST `/api/v1/beneficios` + `/transferencias`, UI com modais |
-| Qualidade de código | 10% | Validação Bean Validation, `@Slf4j`, controller fino, `groupId` Maven `com.bip` |
-| Testes | 15% | JUnit/Mockito backend + EJB + Jasmine frontend |
-| Documentação | 10% | Este README, Swagger, `docs/README.md` |
-| Frontend | 10% | Angular 21, toasts, modais, PT-BR, proxy para API |
-
-Detalhes do enunciado: `docs/README.md`.
-
-## Publicacao
-
-Este projeto foi criado por clone do template, sem fork. Para entregar, crie um novo repositorio publico na sua conta GitHub e publique esta pasta como projeto independente.
